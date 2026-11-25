@@ -8,7 +8,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,7 +17,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Read / remap / write {@code cluster_id} the way iCellR2 and iCellPy expect:
+ * Read / write {@code cluster_id} the way iCellR2 and iCellPy expect:
  * update {@code metadata/cell_data.tsv}, and mirror into
  * {@code metadata/clustering/<modality>_cluster_id.tsv} ({@code cell_id} + {@code clusters}).
  */
@@ -37,31 +36,6 @@ public final class ClusterIO {
             this.nCells = nCells;
             this.nClusters = nClusters;
         }
-    }
-
-    /**
-     * Apply {@code oldLabel → newLabel} to every value in {@code cellIdToLabel}.
-     * Labels not present in the map are left unchanged. Empty / null new labels are skipped.
-     */
-    public static Map<String, String> applyLabelRemap(
-            Map<String, String> cellIdToLabel,
-            Map<String, String> oldToNew
-    ) {
-        Objects.requireNonNull(cellIdToLabel, "cellIdToLabel");
-        if (oldToNew == null || oldToNew.isEmpty()) {
-            return new LinkedHashMap<>(cellIdToLabel);
-        }
-        Map<String, String> out = new LinkedHashMap<>(cellIdToLabel.size());
-        for (Map.Entry<String, String> e : cellIdToLabel.entrySet()) {
-            String cur = e.getValue();
-            String mapped = oldToNew.get(cur);
-            if (mapped != null && !mapped.isBlank()) {
-                out.put(e.getKey(), mapped.trim());
-            } else {
-                out.put(e.getKey(), cur);
-            }
-        }
-        return out;
     }
 
     /** Read {@code cell_id → cluster_id} from {@code metadata/cell_data.tsv}. */
@@ -290,31 +264,6 @@ public final class ClusterIO {
         } catch (IOException ignored) {
         }
         return "rna";
-    }
-
-    public static List<String> uniqueSortedLabels(Map<String, String> cellIdToLabel) {
-        Set<String> raw = new LinkedHashSet<>();
-        for (String v : cellIdToLabel.values()) {
-            if (v != null && !v.isBlank() && !"NA".equalsIgnoreCase(v)) {
-                raw.add(v);
-            }
-        }
-        List<String> levels = new ArrayList<>(raw);
-        boolean allInt = !levels.isEmpty();
-        for (String v : levels) {
-            try {
-                Integer.parseInt(v);
-            } catch (NumberFormatException e) {
-                allInt = false;
-                break;
-            }
-        }
-        if (allInt) {
-            levels.sort((a, b) -> Integer.compare(Integer.parseInt(a), Integer.parseInt(b)));
-        } else {
-            levels.sort(String::compareTo);
-        }
-        return levels;
     }
 
     private static String normalize(String s) {

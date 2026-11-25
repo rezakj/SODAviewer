@@ -56,7 +56,7 @@ Dev run without packaging:
 4. **Plot clusters** / **Plot gene** / **Gene box**
 5. Gene box: one gene = box; `gene1, gene2, …` = bubble heatmap
 6. **File → Export plot…** → PNG / JPG / PDF
-7. **Remap clusters…** to renumber labels · **Export to SODA** writes `cluster_id` (confirm warning)
+7. **Lasso/cluster tools** assign/merge/rename · **Export to SODA** writes `cluster_id` (confirm warning)
 
 Menus: **File · Edit · View · Help**
 
@@ -66,7 +66,7 @@ Large objects: randomly shows up to **100,000** cells (fixed seed) for speed.
 
 | Field | Value |
 |-------|-------|
-| SODAviewer | **0.2.1** (`VERSION`, `pom.xml`, `AppVersion.VERSION`, CLI `--version`) |
+| SODAviewer | **0.2.2** (`VERSION`, `pom.xml`, `AppVersion.VERSION`, CLI `--version`) |
 | Compatible SODA | **soda_version 1.0.0** / **schema_version 1.0.0** |
 | Producer tips | iCellR2 **2.0.5**, iCellPy **0.2.x** |
 

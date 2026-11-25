@@ -6,7 +6,7 @@
 
   <groupId>org.icell</groupId>
   <artifactId>SODAviewer</artifactId>
-  <version>0.2.1</version>
+  <version>0.2.2</version>
   <name>SODAviewer</name>
   <description>Portable SODA archive viewer — gene expression on UMAP / PCA (SODA 1.0.0)</description>
 

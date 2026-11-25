@@ -47,7 +47,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -181,7 +180,6 @@ public final class MainFrame extends JFrame {
     private final JButton panUpBtn = new JButton("↑");
     private final JButton panDownBtn = new JButton("↓");
     private final JButton lassoToolsBtn = new JButton("Lasso/cluster tools ▾");
-    private final JButton remapClustersBtn = new JButton("Remap clusters…");
     private final JButton exportClustersBtn = new JButton("Export to SODA");
     private final JComboBox<AssayChoice> dataTypeBox = new JComboBox<>(AssayChoice.values());
 
@@ -190,9 +188,7 @@ public final class MainFrame extends JFrame {
     private PlotSample sample;
     private ExpressionStore expression;
     private CellMetadata metadata;
-    /** Pending old→new cluster label remap from the remap dialog (session). */
-    private Map<String, String> pendingClusterRemap;
-    /** True after session cluster edits (assign / merge / rename / remap). */
+    /** True after session cluster edits (assign / merge / rename). */
     private boolean clustersDirty;
     /** Guard against Color-by ↔ Scale listener recursion. */
     private boolean applyingColorBy;
@@ -433,15 +429,11 @@ public final class MainFrame extends JFrame {
         tools.add(panDownBtn);
         lassoToolsBtn.setToolTipText(
                 "Exploration tools: save IDs, assign/merge/rename (session). "
-                        + "Use Remap clusters… / Export to SODA to persist.");
+                        + "Use Export to SODA to persist cluster edits.");
         lassoToolsBtn.addActionListener(e -> showLassoToolsMenu());
         tools.add(lassoToolsBtn);
-        remapClustersBtn.setToolTipText(
-                "Renumber or remap cluster labels for the loaded SODA (session until Export)");
-        remapClustersBtn.addActionListener(e -> showRemapClustersDialog());
-        tools.add(remapClustersBtn);
         exportClustersBtn.setToolTipText(
-                "Write remapped / edited clusters into the original SODA directory");
+                "Write session cluster edits (assign / merge / rename) into the original SODA directory");
         exportClustersBtn.addActionListener(e -> exportClustersToSoda());
         tools.add(exportClustersBtn);
 
@@ -584,14 +576,11 @@ public final class MainFrame extends JFrame {
             scatter.clearSelection();
             status.setText(sample == null ? "SODAviewer" : sampleStatus());
         });
-        JMenuItem remapClusters = new JMenuItem("Remap / renumber clusters…");
-        remapClusters.addActionListener(e -> showRemapClustersDialog());
         edit.add(copyGene);
         edit.add(pasteGene);
         edit.add(pasteGenesDialog);
         edit.add(loadGenes);
         edit.addSeparator();
-        edit.add(remapClusters);
         edit.add(clearColor);
         edit.add(clearSel);
         bar.add(edit);
@@ -651,8 +640,8 @@ public final class MainFrame extends JFrame {
                 3. Gene(s) typeahead · Plot / Color by · Data · Dot size · Palette
                 4. View → Max cells to plot (default 1M) · ⌘P runs the selected plot
                 5. Zoom in/out/Home · Color scale for genes / continuous metadata
-                6. Remap clusters… to renumber labels · Export to SODA to write
-                   (confirms — changes the original SODA directory)
+                6. Lasso/cluster tools for assign/merge/rename · Export to SODA
+                   to write (confirms — changes the original SODA directory)
                 """,
                 "How to use", JOptionPane.INFORMATION_MESSAGE));
         JMenuItem shortcuts = new JMenuItem("Keyboard shortcuts");
@@ -845,7 +834,6 @@ public final class MainFrame extends JFrame {
                     OpenResult r = get();
                     soda = r.soda;
                     metadata = r.meta;
-                    pendingClusterRemap = null;
                     clustersDirty = false;
                     List<String> reds = plotReductions(soda);
                     if (reds.isEmpty()) {
@@ -895,7 +883,6 @@ public final class MainFrame extends JFrame {
         metadata = null;
         embedding = null;
         sample = null;
-        pendingClusterRemap = null;
         clustersDirty = false;
         reductionBox.setModel(new DefaultComboBoxModel<>());
         colorByBox.setModel(new DefaultComboBoxModel<>(new Object[]{COLOR_BY_NONE}));
@@ -2198,7 +2185,6 @@ public final class MainFrame extends JFrame {
         panDownBtn.setEnabled(on);
         lassoToolsBtn.setEnabled(on);
         boolean hasClust = on && metadata != null && metadata.hasClusters();
-        remapClustersBtn.setEnabled(hasClust);
         exportClustersBtn.setEnabled(hasClust);
     }
 
@@ -2233,8 +2219,6 @@ public final class MainFrame extends JFrame {
         merge.addActionListener(e -> mergeClustersDialog());
         JMenuItem rename = new JMenuItem("Rename cluster…");
         rename.addActionListener(e -> renameClusterDialog());
-        JMenuItem remap = new JMenuItem("Remap / renumber clusters…");
-        remap.addActionListener(e -> showRemapClustersDialog());
         JMenuItem exportCl = new JMenuItem("Export clusters to SODA…");
         exportCl.addActionListener(e -> exportClustersToSoda());
         menu.add(save);
@@ -2245,7 +2229,6 @@ public final class MainFrame extends JFrame {
         menu.addSeparator();
         menu.add(merge);
         menu.add(rename);
-        menu.add(remap);
         menu.addSeparator();
         menu.add(exportCl);
         menu.show(lassoToolsBtn, 0, lassoToolsBtn.getHeight());
@@ -2432,59 +2415,8 @@ public final class MainFrame extends JFrame {
         clustersDirty = true;
     }
 
-    private void showRemapClustersDialog() {
-        if (soda == null || metadata == null || !metadata.hasClusters()) {
-            JOptionPane.showMessageDialog(this,
-                    "Open a SODA with cluster_id metadata first.",
-                    "Remap clusters", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        List<String> levels;
-        if (scatter.hasClusterColors() && scatter.getClusterLabels() != null) {
-            levels = new ArrayList<>(List.of(scatter.getClusterLabels()));
-        } else {
-            levels = new ArrayList<>(metadata.clusterLevels());
-        }
-        levels.removeIf(s -> s == null || s.isBlank() || "NA".equalsIgnoreCase(s));
-        if (levels.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No cluster labels to remap.",
-                    "Remap clusters", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        ClusterRemapDialog dlg = ClusterRemapDialog.show(this, levels);
-        if (dlg.result() == ClusterRemapDialog.Action.CANCEL) {
-            return;
-        }
-        Map<String, String> map = dlg.oldToNew();
-        pendingClusterRemap = new LinkedHashMap<>(map);
-        applyRemapInSession(map);
-        if (dlg.result() == ClusterRemapDialog.Action.EXPORT) {
-            exportClustersToSoda();
-        } else {
-            status.setText(sampleStatus() + "  ·  remapped " + map.size()
-                    + " cluster labels (session — Export to SODA to write)");
-        }
-    }
-
-    private void applyRemapInSession(Map<String, String> oldToNew) {
-        if (!ensureClusterModeForEdit("Remap clusters")) {
-            return;
-        }
-        String[] labels = scatter.getClusterLabels();
-        if (labels == null) {
-            return;
-        }
-        String[] neu = new String[labels.length];
-        for (int i = 0; i < labels.length; i++) {
-            String mapped = oldToNew.get(labels[i]);
-            neu[i] = (mapped == null || mapped.isBlank()) ? labels[i] : mapped.trim();
-        }
-        scatter.remapClusterLabels(neu);
-        markClustersDirty();
-    }
-
     /**
-     * Write current / remapped cluster labels into the loaded SODA directory.
+     * Write session-edited cluster labels into the loaded SODA directory.
      * Updates {@code metadata/cell_data.tsv} and {@code metadata/clustering/<mod>_cluster_id.tsv}.
      */
     private void exportClustersToSoda() {
@@ -2531,9 +2463,6 @@ public final class MainFrame extends JFrame {
 
         try {
             Map<String, String> labels = ClusterIO.readClusterLabels(root);
-            if (pendingClusterRemap != null && !pendingClusterRemap.isEmpty()) {
-                labels = ClusterIO.applyLabelRemap(labels, pendingClusterRemap);
-            }
             if (scatter.hasClusterColors() && sample != null) {
                 labels = ClusterIO.overlaySampleClusters(
                         labels,
@@ -2544,7 +2473,6 @@ public final class MainFrame extends JFrame {
             String modality = ClusterIO.detectModality(root);
             ClusterIO.WriteResult wr = ClusterIO.writeClusters(root, labels, modality);
             metadata = CellMetadata.load(root);
-            pendingClusterRemap = null;
             clustersDirty = false;
             // Refresh color-by field list and re-apply cluster colors
             Object prevColor = colorByBox.getSelectedItem();
@@ -2580,7 +2508,7 @@ public final class MainFrame extends JFrame {
             status.setText(sampleStatus() + "  ·  wrote clusters → " + wr.cellDataPath.getFileName()
                     + " (" + wr.nCells + " cells, " + wr.nClusters + " clusters)");
             JOptionPane.showMessageDialog(this,
-                    "Wrote remapped clusters for " + wr.nCells + " cells ("
+                    "Wrote edited clusters for " + wr.nCells + " cells ("
                             + wr.nClusters + " clusters).\n\n"
                             + wr.cellDataPath + "\n"
                             + (wr.clusteringPath != null ? wr.clusteringPath : ""),
