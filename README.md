@@ -23,11 +23,14 @@ Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions bui
 ## Build locally
 
 ```bash
-./build.sh          # fat JAR (this machine)
-./package-app.sh    # bundled app for *this* OS only → dist/
+./build.sh                      # fat JAR (this machine)
+./package-app.sh                # jpackage app-image for *this* OS only → dist/
+./package-windows-portable.sh   # Windows x64 portable zip from any host → dist/
 ```
 
-On a Mac you only get a macOS `.app`. For Windows/Linux zips, push a tag or trigger CI — or run `./package-app.sh` on those machines.
+`jpackage` cannot cross-compile. On a Mac, `./package-app.sh` yields a macOS `.app`. For a **native Windows `.exe`** app-image, run `./package-app.sh` on Windows or use the **Release bundles** CI job (`windows-2022`).
+
+From macOS/Linux you can still ship a usable Windows bundle with `./package-windows-portable.sh` → `dist/SODAviewer-*-windows-x64.zip` (bundled Temurin JRE + Windows OpenJFX + `SODAviewer.bat`). See `dist/WINDOWS-BUILD.txt`.
 
 Dev run without packaging:
 

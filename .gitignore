@@ -2,6 +2,7 @@ target/
 lib/
 runtime/
 dist/
+dist/.cache-windows/
 .idea/
 *.iml
 .classpath
