@@ -20,6 +20,16 @@ No Java install for the platform zips (JRE is inside).
 
 Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions builds Mac / Windows / Linux when you push a `v*` tag or run the **Release bundles** workflow.
 
+### Windows `.exe` (GitHub Actions)
+
+Native `SODAviewer.exe` (jpackage on `windows-2022`):
+
+1. Push this repo to GitHub (add a remote if you do not have one yet).
+2. Open **Actions** → **Windows dist (.exe)** → **Run workflow** (manual), or push to `main`/`master` after changing packaging files.
+3. When the run finishes → open the run → **Artifacts** → download `SODAviewer-windows-x64-*` (contains `SODAviewer.exe` and the windows-x64 zip).
+
+Workflow file: [`.github/workflows/windows-dist.yml`](.github/workflows/windows-dist.yml).
+
 ## Build locally
 
 ```bash
@@ -28,7 +38,7 @@ Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions bui
 ./package-windows-portable.sh   # Windows x64 portable zip from any host → dist/
 ```
 
-`jpackage` cannot cross-compile. On a Mac, `./package-app.sh` yields a macOS `.app`. For a **native Windows `.exe`** app-image, run `./package-app.sh` on Windows or use the **Release bundles** CI job (`windows-2022`).
+`jpackage` cannot cross-compile. On a Mac, `./package-app.sh` yields a macOS `.app`. For a **native Windows `.exe`** app-image, run `./package-app.sh` on Windows, or use **Actions → Windows dist (.exe)** above (or the multi-OS **Release bundles** workflow).
 
 From macOS/Linux you can still ship a usable Windows bundle with `./package-windows-portable.sh` → `dist/SODAviewer-*-windows-x64.zip` (bundled Temurin JRE + Windows OpenJFX + `SODAviewer.bat`). See `dist/WINDOWS-BUILD.txt`.
 
