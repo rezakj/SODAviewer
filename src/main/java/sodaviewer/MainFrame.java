@@ -401,6 +401,19 @@ public final class MainFrame extends JFrame {
         lassoBtn.setToolTipText("Lasso-select cells on the scatter plot");
         lassoBtn.addActionListener(e -> toggleLasso());
         tools.add(lassoBtn);
+        // Keep Tools ▾ + Export glued (WrapLayout must not split them across rows)
+        lassoToolsBtn.setToolTipText(
+                "Exploration tools: save IDs, assign/merge/rename (session). "
+                        + "Use Export to SODA to persist cluster edits.");
+        lassoToolsBtn.addActionListener(e -> showLassoToolsMenu());
+        exportClustersBtn.setToolTipText(
+                "Write session cluster edits (assign / merge / rename) into the original SODA directory");
+        exportClustersBtn.addActionListener(e -> exportClustersToSoda());
+        JPanel clusterTools = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        clusterTools.setOpaque(false);
+        clusterTools.add(lassoToolsBtn);
+        clusterTools.add(exportClustersBtn);
+        tools.add(clusterTools);
         zoomInBtn.setToolTipText("Zoom in");
         zoomInBtn.addActionListener(e -> { showCard(CARD_SCATTER); scatter.zoomIn(); });
         tools.add(zoomInBtn);
@@ -427,15 +440,6 @@ public final class MainFrame extends JFrame {
         tools.add(panRightBtn);
         tools.add(panUpBtn);
         tools.add(panDownBtn);
-        lassoToolsBtn.setToolTipText(
-                "Exploration tools: save IDs, assign/merge/rename (session). "
-                        + "Use Export to SODA to persist cluster edits.");
-        lassoToolsBtn.addActionListener(e -> showLassoToolsMenu());
-        tools.add(lassoToolsBtn);
-        exportClustersBtn.setToolTipText(
-                "Write session cluster edits (assign / merge / rename) into the original SODA directory");
-        exportClustersBtn.addActionListener(e -> exportClustersToSoda());
-        tools.add(exportClustersBtn);
 
         scatter.addPropertyChangeListener("hover", evt -> {
             int idx = scatter.hoverIndex();
@@ -672,7 +676,7 @@ public final class MainFrame extends JFrame {
                 %s2          Scatter plot
                 %sR          Reload overview
 
-                Toolbar: Zoom · Pan ←→↑↓ · Lasso · Lasso/cluster tools ▾
+                Toolbar: Lasso · Lasso/cluster tools ▾ · Export to SODA · Zoom · Pan ←→↑↓
                 Legend: click hide · Shift-click select · double-click recolor
                 """.formatted(mod, mod, shift, mod, mod, mod, mod, mod),
                 "Keyboard shortcuts", JOptionPane.INFORMATION_MESSAGE);

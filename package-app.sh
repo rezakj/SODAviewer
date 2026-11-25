@@ -18,7 +18,7 @@ export PATH="${JAVA_HOME:+$JAVA_HOME/bin:}$PATH"
 if [[ -z "${VERSION:-}" && -f "$ROOT/VERSION" ]]; then
   VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 fi
-VERSION="${VERSION:-0.2.2}"
+VERSION="${VERSION:-0.2.3}"
 APP_NAME=SODAviewer
 JAR="$ROOT/target/SODAviewer.jar"
 [[ -f "$JAR" ]] || { echo "Missing $JAR — run ./build.sh first"; exit 1; }

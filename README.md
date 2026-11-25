@@ -66,7 +66,7 @@ Large objects: randomly shows up to **100,000** cells (fixed seed) for speed.
 
 | Field | Value |
 |-------|-------|
-| SODAviewer | **0.2.2** (`VERSION`, `pom.xml`, `AppVersion.VERSION`, CLI `--version`) |
+| SODAviewer | **0.2.3** (`VERSION`, `pom.xml`, `AppVersion.VERSION`, CLI `--version`) |
 | Compatible SODA | **soda_version 1.0.0** / **schema_version 1.0.0** |
 | Producer tips | iCellR2 **2.0.5**, iCellPy **0.2.x** |
 

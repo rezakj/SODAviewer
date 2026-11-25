@@ -6,7 +6,7 @@ package sodaviewer;
  */
 public final class AppVersion {
     /** Application / package version (semver). */
-    public static final String VERSION = "0.2.2";
+    public static final String VERSION = "0.2.3";
 
     /**
      * Compatible SODA format version ({@code soda.json} / {@code soda.info}
