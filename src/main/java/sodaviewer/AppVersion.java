@@ -6,7 +6,7 @@ package sodaviewer;
  */
 public final class AppVersion {
     /** Application / package version (semver). */
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.2.1";
 
     /**
      * Compatible SODA format version ({@code soda.json} / {@code soda.info}
@@ -37,6 +37,7 @@ public final class AppVersion {
                 • Drop or open a .soda folder
                 • Overview shows the archive index.html (when present)
                 • Color by clusters / conditions / pseudotime; plot genes
+                • Remap / renumber clusters · Export to SODA (writes cell_data)
                 """.formatted(
                 VERSION,
                 COMPATIBLE_SODA_VERSION,

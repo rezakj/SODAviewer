@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 if [[ -z "${VERSION:-}" && -f "$ROOT/VERSION" ]]; then
   VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 fi
-VERSION="${VERSION:-0.2.0}"
+VERSION="${VERSION:-0.2.1}"
 APP_NAME=SODAviewer
 PLATFORM=windows-x64
 JFX_VER="${JFX_VER:-17.0.14}"

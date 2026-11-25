@@ -692,6 +692,63 @@ public final class PlotPanel extends JPanel {
     }
 
     /**
+     * Remap each category index to {@code newLabelsByCat[i]}. Duplicate new labels
+     * are merged (first occurrence wins order). Returns number of cells whose
+     * category index changed after compaction.
+     */
+    public int remapClusterLabels(String[] newLabelsByCat) {
+        if (clusterColor == null || clusterLabels == null || newLabelsByCat == null) {
+            return 0;
+        }
+        int k = Math.min(clusterLabels.length, newLabelsByCat.length);
+        if (k < 1) {
+            return 0;
+        }
+        for (int i = 0; i < k; i++) {
+            String neu = newLabelsByCat[i];
+            if (neu != null && !neu.isBlank()) {
+                clusterLabels[i] = neu.trim();
+            }
+        }
+        // Compact duplicates: keep first-seen label order
+        java.util.LinkedHashMap<String, Integer> labelToNew = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < clusterLabels.length; i++) {
+            String lab = clusterLabels[i];
+            if (lab == null || lab.isBlank()) {
+                continue;
+            }
+            labelToNew.putIfAbsent(lab, labelToNew.size());
+        }
+        if (labelToNew.isEmpty()) {
+            return 0;
+        }
+        String[] nl = new String[labelToNew.size()];
+        for (java.util.Map.Entry<String, Integer> e : labelToNew.entrySet()) {
+            nl[e.getValue()] = e.getKey();
+        }
+        int changed = 0;
+        for (int i = 0; i < clusterColor.length; i++) {
+            int c = clusterColor[i];
+            if (c < 0 || c >= clusterLabels.length) {
+                continue;
+            }
+            String lab = clusterLabels[c];
+            Integer neu = lab == null ? null : labelToNew.get(lab);
+            int next = neu == null ? -1 : neu;
+            if (next != clusterColor[i]) {
+                changed++;
+            }
+            clusterColor[i] = next;
+        }
+        clusterLabels = nl;
+        catHidden = new boolean[nl.length];
+        catOverride = new Color[nl.length];
+        mode = Mode.CLUSTER;
+        repaint();
+        return changed;
+    }
+
+    /**
      * Assign selected cells to an existing cluster index, or to a new label
      * when {@code cat < 0} (appends {@code newLabel}).
      * @return number of cells reassigned

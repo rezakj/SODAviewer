@@ -38,7 +38,7 @@ build_local() {
     rm -f META-INF/*.SF META-INF/*.DSA META-INF/*.RSA 2>/dev/null || true
     cp -R "$ROOT/target/classes/"* .
     mkdir -p META-INF
-    APP_VER="$(tr -d '[:space:]' < "$ROOT/VERSION" 2>/dev/null || echo 0.2.0)"
+    APP_VER="$(tr -d '[:space:]' < "$ROOT/VERSION" 2>/dev/null || echo 0.2.1)"
     printf 'Manifest-Version: 1.0\nMain-Class: sodaviewer.Main\nImplementation-Title: SODAviewer\nImplementation-Version: %s\n\n' "$APP_VER" > META-INF/MANIFEST.MF
     jar cfm ../SODAviewer.jar META-INF/MANIFEST.MF .
   )
