@@ -83,11 +83,19 @@ cp -f "$ROOT"/lib/javafx/javafx-*.jar "$STAGE/javafx/" 2>/dev/null || {
   echo "Missing lib/javafx/*.jar — overview WebView will not work in the bundle." >&2
 }
 
+# jpackage rejects macOS --app-version when the first component is 0
+# (e.g. product 0.2.0). Pass a compatible value, then restore VERSION in Info.plist.
+JPACKAGE_VERSION="$VERSION"
+if [[ "$OS" == darwin && "$VERSION" == 0.* ]]; then
+  JPACKAGE_VERSION="${VERSION#0.}"
+  echo "==> jpackage app-version ${JPACKAGE_VERSION} (product ${VERSION}; macOS rejects leading 0)"
+fi
+
 echo "==> jpackage app-image..."
 jpackage \
   --type app-image \
   --name "$APP_NAME" \
-  --app-version "$VERSION" \
+  --app-version "$JPACKAGE_VERSION" \
   --input "$STAGE" \
   --main-jar SODAviewer.jar \
   --main-class sodaviewer.Main \
@@ -101,6 +109,13 @@ jpackage \
   --description "SODA archive viewer — overview + gene expression on UMAP / PCA"
 
 if [[ "$OS" == darwin ]]; then
+  PLIST="$DIST/$IMAGE_NAME/Contents/Info.plist"
+  if [[ -f "$PLIST" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" "$PLIST"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$PLIST" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $VERSION" "$PLIST"
+  fi
   # Clear quarantine + ad-hoc sign so Finder can launch unsigned local builds
   xattr -cr "$DIST/$IMAGE_NAME" 2>/dev/null || true
   codesign --force --deep --sign - "$DIST/$IMAGE_NAME" 2>/dev/null || true
