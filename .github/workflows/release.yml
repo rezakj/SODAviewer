@@ -62,6 +62,9 @@ jobs:
 
       - name: Fetch deps + platform JavaFX + build fat JAR
         shell: bash
+        env:
+          MSYS_NO_PATHCONV: "1"
+          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           set -euo pipefail
           mkdir -p lib lib/javafx target/classes target/fat
@@ -90,20 +93,20 @@ jobs:
               "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
           done
 
-          # Classpath separator is OS-specific; JavaFX module-path required for
-          # SodaHomePanel (same as build.sh).
+          # JavaFX on -cp (avoids Git Bash breaking Windows ';' --module-path).
           SEP=':'
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             SEP=';'
           fi
-          CP="$(echo lib/*.jar | tr ' ' "$SEP")"
-          JFX="$(echo lib/javafx/javafx-*.jar | tr ' ' "$SEP")"
-          javac --release 17 \
-            --module-path "$JFX" \
-            --add-modules javafx.controls,javafx.web,javafx.swing \
-            -cp "$CP" \
-            -d target/classes \
-            src/main/java/sodaviewer/*.java
+          CP=""
+          for j in lib/*.jar lib/javafx/*.jar; do
+            [[ -f "$j" ]] || continue
+            if [[ -n "$CP" ]]; then CP="$CP$SEP"; fi
+            CP="$CP$j"
+          done
+          echo "javac jars: $(ls lib/*.jar lib/javafx/*.jar | wc -l) sep=$SEP"
+          javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
+          test -f target/classes/sodaviewer/SodaHomePanel.class
           if [[ -d src/main/resources ]]; then
             cp -R src/main/resources/. target/classes/
           fi
@@ -126,6 +129,8 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          MSYS_NO_PATHCONV: "1"
+          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           set -euo pipefail
           bash package-app.sh

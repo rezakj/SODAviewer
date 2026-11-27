@@ -66,6 +66,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Git Bash otherwise mangles args that contain ';' (Windows classpaths).
+          export MSYS_NO_PATHCONV=1
+          export MSYS2_ARG_CONV_EXCL='*'
           mkdir -p lib lib/javafx target/classes target/fat
           BASE=https://repo.maven.apache.org/maven2
           JFX_VER=17.0.14
@@ -91,16 +94,17 @@ jobs:
               "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-win.jar"
           done
 
-          # Windows Git Bash: classpath/module-path use ';'. JavaFX is required
-          # to compile SodaHomePanel (WebView overview); match build.sh.
-          CP="$(echo lib/*.jar | tr ' ' ';')"
-          JFX="$(echo lib/javafx/javafx-*.jar | tr ' ' ';')"
-          javac --release 17 \
-            --module-path "$JFX" \
-            --add-modules javafx.controls,javafx.web,javafx.swing \
-            -cp "$CP" \
-            -d target/classes \
-            src/main/java/sodaviewer/*.java
+          # Put JavaFX on -cp (not --module-path): Git Bash/MSYS often breaks
+          # semicolon module-paths, and non-modular sodaviewer compiles fine from -cp.
+          CP=""
+          for j in lib/*.jar lib/javafx/*.jar; do
+            [[ -f "$j" ]] || continue
+            if [[ -n "$CP" ]]; then CP="$CP;"; fi
+            CP="$CP$j"
+          done
+          echo "javac jars: $(ls lib/*.jar lib/javafx/*.jar | wc -l)"
+          javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
+          test -f target/classes/sodaviewer/SodaHomePanel.class
           if [[ -d src/main/resources ]]; then
             cp -R src/main/resources/. target/classes/
           fi
@@ -123,6 +127,8 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          MSYS_NO_PATHCONV: "1"
+          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           set -euo pipefail
           command -v jpackage
