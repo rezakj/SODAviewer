@@ -21,8 +21,8 @@ public final class AppVersion {
     public static final String COMPATIBLE_SCHEMA_VERSION = "1.0.0";
 
     /** Documented producer tips this build targets. */
-    public static final String COMPATIBLE_ICELLR2 = "2.0.5";
-    public static final String COMPATIBLE_ICELLPY = "0.2.x";
+    public static final String COMPATIBLE_ICELLR2 = "2.0.11";
+    public static final String COMPATIBLE_ICELLPY = "0.2.9";
 
     private AppVersion() {}
 
