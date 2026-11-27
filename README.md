@@ -88,3 +88,7 @@ java -jar target/SODAviewer.jar --version
 
 Plottable reductions include `pca`, `umap`, `cgumap`, `cgpca`, `knetl`, and `aligned_*`.
 Reads both iCellR2 CSC (`i/p/x`) and Python/legacy sparse layouts, plus 10x `/matrix` counts if needed.
+
+## License
+
+SODAviewer is released under the **GNU General Public License v3.0** (GPL-3.0). See [`LICENSE`](LICENSE).
