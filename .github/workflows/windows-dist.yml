@@ -1,10 +1,24 @@
 name: Windows dist (.exe)
 
 # Native jpackage Windows app-image (SODAviewer.exe). Cannot be built on macOS.
-# Trigger: Actions → "Windows dist (.exe)" → Run workflow
-# Or: push to main/master touching this workflow / packaging scripts.
+#
+# Trigger:
+#   Actions → "Windows dist (.exe)" → Run workflow
+#   Optional: check "Publish to GitHub Release" + tag (e.g. v0.2.4)
+#   Or: push to main/master touching this workflow / packaging scripts
+#
+# Full multi-OS Release (including Windows): push a v* tag → "Release bundles"
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Upload Windows zip/exe to a GitHub Release"
+        type: boolean
+        default: false
+      release_tag:
+        description: "Release tag (e.g. v0.2.4). Empty = v$VERSION from VERSION file"
+        type: string
+        default: ""
   push:
     branches: [main, master]
     paths:
@@ -16,7 +30,7 @@ on:
       - "src/**"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-exe:
@@ -40,7 +54,13 @@ jobs:
             V=0.2.0
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "SODAviewer version=$V"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.release_tag }}" ]]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="v${V}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "SODAviewer version=$V tag=$TAG"
 
       - name: Fetch deps + Windows JavaFX + build fat JAR
         shell: bash
@@ -115,3 +135,16 @@ jobs:
             dist/SODAviewer-*-windows-x64.zip
             dist/SODAviewer-*.jar
           if-no-files-found: error
+
+      - name: Publish Windows assets to GitHub Release
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: SODAviewer ${{ steps.ver.outputs.tag }}
+          files: |
+            dist/SODAviewer.exe
+            dist/SODAviewer-*-windows-x64.zip
+            dist/SODAviewer-*.jar
+          generate_release_notes: true
+          fail_on_unmatched_files: true

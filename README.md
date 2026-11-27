@@ -18,17 +18,26 @@ No Java install for the platform zips (JRE is inside).
 
 **macOS Gatekeeper:** first launch → right-click → **Open** (not notarized yet).
 
-Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions builds Mac / Windows / Linux when you push a `v*` tag or run the **Release bundles** workflow.
+Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions builds Mac / Windows / Linux and publishes them to a [GitHub Release](../../releases) when you push a `v*` tag (e.g. `v0.2.4`) or run **Release bundles** with a release tag.
 
-### Windows `.exe` (GitHub Actions)
+```bash
+# From a commit that has VERSION=0.2.4
+git tag v0.2.4
+git push origin v0.2.4
+# → Actions "Release bundles" builds all OS zips + uploads to Release v0.2.4
+```
 
-Native `SODAviewer.exe` (jpackage on `windows-2022`):
+Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
-1. Push this repo to GitHub (add a remote if you do not have one yet).
-2. Open **Actions** → **Windows dist (.exe)** → **Run workflow** (manual), or push to `main`/`master` after changing packaging files.
-3. When the run finishes → open the run → **Artifacts** → download `SODAviewer-windows-x64-*` (contains `SODAviewer.exe` and the windows-x64 zip).
+### Windows `.exe` only (GitHub Actions)
 
-Workflow file: [`.github/workflows/windows-dist.yml`](.github/workflows/windows-dist.yml).
+Native `SODAviewer.exe` (jpackage on `windows-2022`) — use this from a Mac when you only need Windows:
+
+1. Open **Actions** → **Windows dist (.exe)** → **Run workflow**.
+2. Optional: enable **Publish to GitHub Release** and set tag `v0.2.4` to attach the zip/exe to that Release (creates the tag/release if missing).
+3. Or leave publish off and download from the run **Artifacts** → `SODAviewer-windows-x64-*`.
+
+Workflow: [`.github/workflows/windows-dist.yml`](.github/workflows/windows-dist.yml).
 
 ## Build locally
 
