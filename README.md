@@ -2,23 +2,26 @@
 
 Portable **SODA archive viewer** (Java / Swing). Open a `.soda` folder and plot **PCA / UMAP / KNetL** (plus aligned_* and cgumap/cgpca when present) colored by gene expression — IGV-style bundled runtime, no install wizard.
 
+## Downloads (v0.2.4)
+
+Direct links from the [v0.2.4 release](https://github.com/rezakj/SODAviewer/releases/tag/v0.2.4):
+
+| Platform | Asset | Link |
+|----------|-------|------|
+| macOS (Apple Silicon) | `SODAviewer-0.2.4-macos-arm64.dmg` | [Download](https://github.com/rezakj/SODAviewer/releases/download/v0.2.4/SODAviewer-0.2.4-macos-arm64.dmg) |
+| macOS (Apple Silicon) | `SODAviewer-0.2.4-macos-arm64.zip` | [Download](https://github.com/rezakj/SODAviewer/releases/download/v0.2.4/SODAviewer-0.2.4-macos-arm64.zip) |
+| Windows (portable) | `SODAviewer-windows.zip` | [Download](https://github.com/rezakj/SODAviewer/releases/download/v0.2.4/SODAviewer-windows.zip) |
+| Linux / any OS (JAR) | `SODAviewer-0.2.4.jar` | [Download](https://github.com/rezakj/SODAviewer/releases/download/v0.2.4/SODAviewer-0.2.4.jar) |
+
+- **macOS:** DMG → drag to Applications · Zip → open `SODAviewer.app`. First launch: right-click → **Open** (not notarized yet).
+- **Windows:** Unzip → double-click `SODAviewer.bat` (bundled JRE). A native `SODAviewer.exe` may appear later via **Actions → Windows dist (.exe)**.
+- **Linux / JAR:** `java -jar SODAviewer-0.2.4.jar` (needs Java 17+).
+
+No Java install for the macOS/Windows platform bundles (JRE is inside).
+
+Older or other platforms: see all [Releases](../../releases).
+
 ## Install (end users)
-
-Download for **your OS** from [Releases](../../releases):
-
-| Platform | Download | How to run |
-|----------|----------|------------|
-| macOS Apple Silicon | `SODAviewer-*-macos-arm64.dmg` (or `.zip`) | DMG: drag to Applications · Zip: open `SODAviewer.app` |
-| macOS Intel | `SODAviewer-*-macos-x64.dmg` (or `.zip`) | DMG: drag to Applications · Zip: open `SODAviewer.app` |
-| Windows | `SODAviewer-*-windows-x64.zip` (portable) | Unzip → double-click `SODAviewer.bat` |
-| Linux | `SODAviewer-*-linux-x64.zip` | Run `SODAviewer/bin/SODAviewer` |
-| Any OS (needs Java 17+) | `SODAviewer-*.jar` | `java -jar SODAviewer-*.jar` |
-
-No Java install for the platform bundles (JRE is inside).
-
-**Windows note:** the Release download is the **portable zip** (`SODAviewer.bat` + bundled JRE). A native `SODAviewer.exe` (jpackage) is produced when **Actions → Windows dist (.exe)** succeeds; if present on the Release, use that instead (or the `*-windows-x64-exe.zip` app-image).
-
-**macOS Gatekeeper:** first launch → right-click → **Open** (not notarized yet).
 
 Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions builds Mac / Windows / Linux and publishes them to a [GitHub Release](../../releases) when you push a `v*` tag (e.g. `v0.2.4`) or run **Release bundles** with a release tag.
 
