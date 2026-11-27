@@ -37,7 +37,9 @@ permissions:
 
 jobs:
   windows-portable:
-    runs-on: windows-2022
+    # Portable zip is cross-built (Win JRE + Win JavaFX + .bat); Ubuntu avoids
+    # windows-2022 Git Bash missing unzip/python3/du (exit 127).
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 

@@ -35,9 +35,11 @@ jobs:
           - os: ubuntu-22.04
             artifact: linux-x64
             javafx_classifier: linux
-          - os: windows-2022
+          # Portable Windows zip cross-builds on Ubuntu (no jpackage / Git Bash).
+          - os: ubuntu-22.04
             artifact: windows-x64
             javafx_classifier: win
+            windows_portable: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -61,15 +63,13 @@ jobs:
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "SODAviewer version=$V"
 
-      - name: Maven package (+ platform JavaFX for non-Windows jpackage)
+      - name: Maven package (+ platform JavaFX for jpackage legs)
         shell: bash
         run: |
           set -euo pipefail
           mvn -B -DskipTests package
           test -f target/SODAviewer.jar
-          # package-app.sh needs lib/javafx for macOS/Linux jpackage module-path.
-          # Windows CI ships the portable zip instead (no jpackage).
-          if [[ "${{ runner.os }}" != "Windows" ]]; then
+          if [[ "${{ matrix.windows_portable }}" != "true" ]]; then
             mkdir -p lib/javafx
             BASE=https://repo.maven.apache.org/maven2
             JFX_VER=17.0.14
@@ -89,16 +89,10 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            # Durable path: portable zip (JRE + JavaFX + .bat). jpackage .exe
-            # repeatedly failed under windows-2022 Git Bash.
+          if [[ "${{ matrix.windows_portable }}" == "true" ]]; then
             bash package-windows-portable.sh
             test -f "dist/SODAviewer-${{ steps.ver.outputs.version }}-windows-x64.zip"
           else
-            if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
-              export JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
-            fi
-            export PATH="${JAVA_HOME}/bin:${PATH}"
             bash package-app.sh
           fi
           ls -lh dist/SODAviewer-* 2>/dev/null || true
