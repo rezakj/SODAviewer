@@ -93,19 +93,15 @@ jobs:
               "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
           done
 
-          # JavaFX on -cp (avoids Git Bash breaking Windows ';' --module-path).
-          SEP=':'
+          # JavaFX on -cp. On Windows, invoke javac via cmd so Git Bash/MSYS
+          # cannot mangle the ';' classpath (wildcards expanded by javac).
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            SEP=';'
+            MSYS_NO_PATHCONV=1 cmd.exe //c "javac --release 17 -cp \"lib/*;lib/javafx/*\" -d target\\classes src\\main\\java\\sodaviewer\\*.java"
+          else
+            CP="$(echo lib/*.jar lib/javafx/*.jar | tr ' ' ':')"
+            echo "javac cp=$CP"
+            javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
           fi
-          CP=""
-          for j in lib/*.jar lib/javafx/*.jar; do
-            [[ -f "$j" ]] || continue
-            if [[ -n "$CP" ]]; then CP="$CP$SEP"; fi
-            CP="$CP$j"
-          done
-          echo "javac jars: $(ls lib/*.jar lib/javafx/*.jar | wc -l) sep=$SEP"
-          javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
           test -f target/classes/sodaviewer/SodaHomePanel.class
           if [[ -d src/main/resources ]]; then
             cp -R src/main/resources/. target/classes/

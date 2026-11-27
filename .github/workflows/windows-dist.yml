@@ -62,66 +62,81 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "SODAviewer version=$V tag=$TAG"
 
+      # PowerShell avoids Git Bash/MSYS mangling of ';' classpaths.
       - name: Fetch deps + Windows JavaFX + build fat JAR
-        shell: bash
+        shell: pwsh
+        env:
+          APP_VER: ${{ steps.ver.outputs.version }}
         run: |
-          set -euo pipefail
-          # Git Bash otherwise mangles args that contain ';' (Windows classpaths).
-          export MSYS_NO_PATHCONV=1
-          export MSYS2_ARG_CONV_EXCL='*'
-          mkdir -p lib lib/javafx target/classes target/fat
-          BASE=https://repo.maven.apache.org/maven2
-          JFX_VER=17.0.14
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path lib, lib/javafx, target/classes, target/fat | Out-Null
+          $BASE = 'https://repo.maven.apache.org/maven2'
+          $JFX_VER = '17.0.14'
+
+          function Get-MavenJar([string]$Out, [string]$Url) {
+            Write-Host "GET $Url"
+            & curl.exe -fsSL -o $Out $Url
+            if (-not (Test-Path $Out) -or (Get-Item $Out).Length -lt 1000) {
+              throw "Download failed or too small: $Out"
+            }
+          }
 
           # Match local/pom dependency versions (jhdf 0.13.x tree)
-          curl -fsSL -o lib/jhdf-0.13.0.jar \
-            "$BASE/io/jhdf/jhdf/0.13.0/jhdf-0.13.0.jar"
-          curl -fsSL -o lib/slf4j-api-2.0.18.jar \
-            "$BASE/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar"
-          curl -fsSL -o lib/slf4j-nop-2.0.18.jar \
-            "$BASE/org/slf4j/slf4j-nop/2.0.18/slf4j-nop-2.0.18.jar"
-          curl -fsSL -o lib/commons-lang3-3.20.0.jar \
-            "$BASE/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar"
-          curl -fsSL -o lib/compress-lzf-1.2.0.jar \
-            "$BASE/com/ning/compress-lzf/1.2.0/compress-lzf-1.2.0.jar"
+          Get-MavenJar 'lib/jhdf-0.13.0.jar' "$BASE/io/jhdf/jhdf/0.13.0/jhdf-0.13.0.jar"
+          Get-MavenJar 'lib/slf4j-api-2.0.18.jar' "$BASE/org/slf4j/slf4j-api/2.0.18/slf4j-api-2.0.18.jar"
+          Get-MavenJar 'lib/slf4j-nop-2.0.18.jar' "$BASE/org/slf4j/slf4j-nop/2.0.18/slf4j-nop-2.0.18.jar"
+          Get-MavenJar 'lib/commons-lang3-3.20.0.jar' "$BASE/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar"
+          Get-MavenJar 'lib/compress-lzf-1.2.0.jar' "$BASE/com/ning/compress-lzf/1.2.0/compress-lzf-1.2.0.jar"
           # jhdf 0.13 pulls at.yawk.lz4 (not org.lz4; 1.11.1 is not on org.lz4)
-          curl -fsSL -o lib/lz4-java-1.11.1.jar \
-            "$BASE/at/yawk/lz4/lz4-java/1.11.1/lz4-java-1.11.1.jar"
+          Get-MavenJar 'lib/lz4-java-1.11.1.jar' "$BASE/at/yawk/lz4/lz4-java/1.11.1/lz4-java-1.11.1.jar"
 
-          # OpenJFX Windows natives (needed by package-app.sh / WebView overview)
-          for mod in base controls graphics swing web; do
-            curl -fsSL -o "lib/javafx/javafx-${mod}-${JFX_VER}-win.jar" \
-              "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-win.jar"
-          done
+          foreach ($mod in @('base','controls','graphics','swing','web')) {
+            Get-MavenJar "lib/javafx/javafx-$mod-$JFX_VER-win.jar" `
+              "$BASE/org/openjfx/javafx-$mod/$JFX_VER/javafx-$mod-$JFX_VER-win.jar"
+          }
 
-          # Put JavaFX on -cp (not --module-path): Git Bash/MSYS often breaks
-          # semicolon module-paths, and non-modular sodaviewer compiles fine from -cp.
-          CP=""
-          for j in lib/*.jar lib/javafx/*.jar; do
-            [[ -f "$j" ]] || continue
-            if [[ -n "$CP" ]]; then CP="$CP;"; fi
-            CP="$CP$j"
-          done
-          echo "javac jars: $(ls lib/*.jar lib/javafx/*.jar | wc -l)"
-          javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
-          test -f target/classes/sodaviewer/SodaHomePanel.class
-          if [[ -d src/main/resources ]]; then
-            cp -R src/main/resources/. target/classes/
-          fi
+          # Absolute jar paths + quoted -cp (';' must not be a PS statement break).
+          $jars = @(Get-ChildItem lib/*.jar, lib/javafx/*.jar | ForEach-Object FullName)
+          if ($jars.Count -lt 8) { throw "Expected deps+javafx jars, found $($jars.Count)" }
+          $cp = $jars -join ';'
+          $sources = @(Get-ChildItem src/main/java/sodaviewer/*.java | ForEach-Object FullName)
+          if ($sources.Count -lt 1) { throw 'No Java sources found' }
+          Write-Host "javac $($sources.Count) sources, $($jars.Count) jars"
+          & javac --release 17 -cp "$cp" -d target/classes @sources
+          if ($LASTEXITCODE -ne 0) { throw "javac failed: $LASTEXITCODE" }
+          if (-not (Test-Path 'target/classes/sodaviewer/SodaHomePanel.class')) {
+            throw 'SodaHomePanel.class missing after javac'
+          }
 
-          APP_VER="${{ steps.ver.outputs.version }}"
-          (
-            cd target/fat
-            for j in ../../lib/*.jar; do jar xf "$j"; done
-            rm -f META-INF/*.SF META-INF/*.DSA META-INF/*.RSA || true
-            cp -R ../classes/* .
-            mkdir -p META-INF
-            printf 'Manifest-Version: 1.0\nMain-Class: sodaviewer.Main\nImplementation-Title: SODAviewer\nImplementation-Version: %s\n\n' "$APP_VER" \
-              > META-INF/MANIFEST.MF
-            jar cfm ../SODAviewer.jar META-INF/MANIFEST.MF .
-          )
-          ls -lh target/SODAviewer.jar
-          ls lib/javafx/
+          if (Test-Path 'src/main/resources') {
+            Copy-Item -Path 'src/main/resources/*' -Destination 'target/classes/' -Recurse -Force
+          }
+
+          Push-Location target/fat
+          try {
+            Get-ChildItem ../../lib/*.jar | ForEach-Object {
+              & jar xf $_.FullName
+              if ($LASTEXITCODE -ne 0) { throw "jar xf failed: $($_.Name)" }
+            }
+            Remove-Item -ErrorAction SilentlyContinue META-INF/*.SF, META-INF/*.DSA, META-INF/*.RSA
+            Copy-Item -Path ../classes/* -Destination . -Recurse -Force
+            New-Item -ItemType Directory -Force -Path META-INF | Out-Null
+            $manifest = @(
+              'Manifest-Version: 1.0',
+              'Main-Class: sodaviewer.Main',
+              'Implementation-Title: SODAviewer',
+              "Implementation-Version: $env:APP_VER",
+              ''
+            ) -join "`n"
+            Set-Content -Path META-INF/MANIFEST.MF -Value $manifest -NoNewline -Encoding ascii
+            & jar cfm ../SODAviewer.jar META-INF/MANIFEST.MF .
+            if ($LASTEXITCODE -ne 0) { throw 'jar cfm failed' }
+          }
+          finally {
+            Pop-Location
+          }
+
+          Get-Item target/SODAviewer.jar, lib/javafx/*.jar | Format-Table Name, Length
 
       - name: jpackage Windows app-image (SODAviewer.exe)
         shell: bash
