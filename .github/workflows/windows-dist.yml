@@ -81,8 +81,9 @@ jobs:
             "$BASE/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar"
           curl -fsSL -o lib/compress-lzf-1.2.0.jar \
             "$BASE/com/ning/compress-lzf/1.2.0/compress-lzf-1.2.0.jar"
+          # jhdf 0.13 pulls at.yawk.lz4 (not org.lz4; 1.11.1 is not on org.lz4)
           curl -fsSL -o lib/lz4-java-1.11.1.jar \
-            "$BASE/org/lz4/lz4-java/1.11.1/lz4-java-1.11.1.jar"
+            "$BASE/at/yawk/lz4/lz4-java/1.11.1/lz4-java-1.11.1.jar"
 
           # OpenJFX Windows natives (needed by package-app.sh / WebView overview)
           for mod in base controls graphics swing web; do
