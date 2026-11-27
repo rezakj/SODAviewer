@@ -90,11 +90,20 @@ jobs:
               "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
           done
 
-          CP="$(echo lib/*.jar | tr ' ' ':')"
+          # Classpath separator is OS-specific; JavaFX module-path required for
+          # SodaHomePanel (same as build.sh).
+          SEP=':'
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            CP="$(echo lib/*.jar | tr ' ' ';')"
+            SEP=';'
           fi
-          javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
+          CP="$(echo lib/*.jar | tr ' ' "$SEP")"
+          JFX="$(echo lib/javafx/javafx-*.jar | tr ' ' "$SEP")"
+          javac --release 17 \
+            --module-path "$JFX" \
+            --add-modules javafx.controls,javafx.web,javafx.swing \
+            -cp "$CP" \
+            -d target/classes \
+            src/main/java/sodaviewer/*.java
           if [[ -d src/main/resources ]]; then
             cp -R src/main/resources/. target/classes/
           fi

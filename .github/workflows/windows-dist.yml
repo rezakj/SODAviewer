@@ -91,9 +91,16 @@ jobs:
               "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-win.jar"
           done
 
-          # Windows Git Bash: javac classpath uses ';'
+          # Windows Git Bash: classpath/module-path use ';'. JavaFX is required
+          # to compile SodaHomePanel (WebView overview); match build.sh.
           CP="$(echo lib/*.jar | tr ' ' ';')"
-          javac --release 17 -cp "$CP" -d target/classes src/main/java/sodaviewer/*.java
+          JFX="$(echo lib/javafx/javafx-*.jar | tr ' ' ';')"
+          javac --release 17 \
+            --module-path "$JFX" \
+            --add-modules javafx.controls,javafx.web,javafx.swing \
+            -cp "$CP" \
+            -d target/classes \
+            src/main/java/sodaviewer/*.java
           if [[ -d src/main/resources ]]; then
             cp -R src/main/resources/. target/classes/
           fi
