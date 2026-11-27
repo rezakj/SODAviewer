@@ -1,18 +1,20 @@
-name: Windows dist (.exe)
+name: Windows dist (portable)
 
-# Native jpackage Windows app-image (SODAviewer.exe). Cannot be built on macOS.
+# Durable Windows x64 ship: fat JAR + Temurin JRE + OpenJFX + SODAviewer.bat
+# (Native jpackage .exe kept failing on windows-2022; portable zip is the CI path.)
 #
 # Trigger:
-#   Actions → "Windows dist (.exe)" → Run workflow
+#   Actions → "Windows dist (portable)" → Run workflow
 #   Optional: check "Publish to GitHub Release" + tag (e.g. v0.2.4)
 #   Or: push to main/master touching this workflow / packaging scripts
 #
-# Full multi-OS Release (including Windows): push a v* tag → "Release bundles"
+# Full multi-OS Release: push a v* tag → "Release bundles"
+# (Windows leg of that workflow also uses the portable zip.)
 on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Upload Windows zip/exe to a GitHub Release"
+        description: "Upload Windows portable zip/jar to a GitHub Release"
         type: boolean
         default: false
       release_tag:
@@ -23,6 +25,7 @@ on:
     branches: [main, master]
     paths:
       - ".github/workflows/windows-dist.yml"
+      - "package-windows-portable.sh"
       - "package-app.sh"
       - "build.sh"
       - "pom.xml"
@@ -33,7 +36,7 @@ permissions:
   contents: write
 
 jobs:
-  windows-exe:
+  windows-portable:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -63,54 +66,32 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "SODAviewer version=$V tag=$TAG"
 
-      # Maven compiles + shades (avoids Windows Git Bash/pwsh javac classpath issues).
-      # JavaFX win jars still land in lib/javafx for package-app.sh --module-path.
-      - name: Maven package + Windows JavaFX for jpackage
+      - name: Maven package
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p lib/javafx
-          BASE=https://repo.maven.apache.org/maven2
-          JFX_VER=17.0.14
-          for mod in base controls graphics swing web; do
-            curl -fsSL -o "lib/javafx/javafx-${mod}-${JFX_VER}-win.jar" \
-              "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-win.jar"
-            test -s "lib/javafx/javafx-${mod}-${JFX_VER}-win.jar"
-          done
           mvn -B -DskipTests package
           test -f target/SODAviewer.jar
-          ls -lh target/SODAviewer.jar lib/javafx/
+          ls -lh target/SODAviewer.jar
 
-      - name: jpackage Windows app-image (SODAviewer.exe)
+      - name: Portable Windows zip (JRE + JavaFX + bat)
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
-          # Normalize JAVA_HOME for Git Bash before package-app.sh touches PATH.
-          if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
-            export JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
-          fi
-          export PATH="${JAVA_HOME}/bin:${PATH}"
-          echo "JAVA_HOME=$JAVA_HOME"
-          ls -lh target/SODAviewer.jar lib/javafx/ | head -20
-          command -v jpackage || ls -la "${JAVA_HOME}/bin"/jpackage*
-          command -v jlink || ls -la "${JAVA_HOME}/bin"/jlink*
-          bash package-app.sh
-          # Flatten a copy of the launcher for a simple artifact name
-          EXE="dist/SODAviewer/SODAviewer.exe"
-          [[ -f "$EXE" ]] || { echo "Missing $EXE"; find dist -maxdepth 3 -type f | head -80; exit 1; }
-          cp -f "$EXE" "dist/SODAviewer.exe"
-          ls -lh dist/SODAviewer.exe dist/SODAviewer-*-windows-x64.zip
+          bash package-windows-portable.sh
+          test -f "dist/SODAviewer-${{ steps.ver.outputs.version }}-windows-x64.zip"
+          ls -lh dist/SODAviewer-*-windows-x64.zip dist/SODAviewer-*.jar dist/WINDOWS-BUILD.txt
 
-      - name: Upload SODAviewer.exe + zip
+      - name: Upload Windows portable artifacts
         uses: actions/upload-artifact@v4
         with:
           name: SODAviewer-windows-x64-${{ steps.ver.outputs.version }}
           path: |
-            dist/SODAviewer.exe
             dist/SODAviewer-*-windows-x64.zip
             dist/SODAviewer-*.jar
+            dist/WINDOWS-BUILD.txt
           if-no-files-found: error
 
       - name: Publish Windows assets to GitHub Release
@@ -120,7 +101,6 @@ jobs:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: SODAviewer ${{ steps.ver.outputs.tag }}
           files: |
-            dist/SODAviewer.exe
             dist/SODAviewer-*-windows-x64.zip
             dist/SODAviewer-*.jar
           generate_release_notes: true

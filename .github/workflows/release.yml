@@ -61,22 +61,27 @@ jobs:
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "SODAviewer version=$V"
 
-      - name: Maven package + platform JavaFX for jpackage
+      - name: Maven package (+ platform JavaFX for non-Windows jpackage)
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p lib/javafx
-          BASE=https://repo.maven.apache.org/maven2
-          JFX_VER=17.0.14
-          JFX_CLASS="${{ matrix.javafx_classifier }}"
-          for mod in base controls graphics swing web; do
-            curl -fsSL -o "lib/javafx/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar" \
-              "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
-            test -s "lib/javafx/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
-          done
           mvn -B -DskipTests package
           test -f target/SODAviewer.jar
-          ls -lh target/SODAviewer.jar lib/javafx/
+          # package-app.sh needs lib/javafx for macOS/Linux jpackage module-path.
+          # Windows CI ships the portable zip instead (no jpackage).
+          if [[ "${{ runner.os }}" != "Windows" ]]; then
+            mkdir -p lib/javafx
+            BASE=https://repo.maven.apache.org/maven2
+            JFX_VER=17.0.14
+            JFX_CLASS="${{ matrix.javafx_classifier }}"
+            for mod in base controls graphics swing web; do
+              curl -fsSL -o "lib/javafx/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar" \
+                "$BASE/org/openjfx/javafx-${mod}/${JFX_VER}/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
+              test -s "lib/javafx/javafx-${mod}-${JFX_VER}-${JFX_CLASS}.jar"
+            done
+            ls -lh lib/javafx/
+          fi
+          ls -lh target/SODAviewer.jar
 
       - name: Package bundled runtime
         shell: bash
@@ -84,15 +89,17 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
-          if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
-            export JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
-          fi
-          export PATH="${JAVA_HOME}/bin:${PATH}"
-          bash package-app.sh
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            EXE="dist/SODAviewer/SODAviewer.exe"
-            [[ -f "$EXE" ]] || { echo "Missing $EXE"; find dist -maxdepth 3 -type f | head -80; exit 1; }
-            cp -f "$EXE" "dist/SODAviewer.exe"
+            # Durable path: portable zip (JRE + JavaFX + .bat). jpackage .exe
+            # repeatedly failed under windows-2022 Git Bash.
+            bash package-windows-portable.sh
+            test -f "dist/SODAviewer-${{ steps.ver.outputs.version }}-windows-x64.zip"
+          else
+            if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
+              export JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
+            fi
+            export PATH="${JAVA_HOME}/bin:${PATH}"
+            bash package-app.sh
           fi
           ls -lh dist/SODAviewer-* 2>/dev/null || true
 
@@ -105,7 +112,6 @@ jobs:
             dist/SODAviewer-*.tar.gz
             dist/SODAviewer-*.dmg
             dist/SODAviewer-*.jar
-            dist/SODAviewer.exe
           if-no-files-found: error
 
   release:
@@ -128,8 +134,7 @@ jobs:
             -name 'SODAviewer-*.zip' -o \
             -name 'SODAviewer-*.tar.gz' -o \
             -name 'SODAviewer-*.dmg' -o \
-            -name 'SODAviewer-*.jar' -o \
-            -name 'SODAviewer.exe' \
+            -name 'SODAviewer-*.jar' \
           \) -exec cp -f {} upload/ \;
           ls -lh upload/
           test "$(find upload -type f | wc -l)" -gt 0
