@@ -1,5 +1,6 @@
 # Build a native Windows x64 jpackage app-image (SODAviewer.exe).
-# PowerShell / cmd only — do not run under Git Bash (path / $APPDIR mangling).
+# PowerShell / cmd only - do not run under Git Bash (path / $APPDIR mangling).
+# Keep this file ASCII-only so Windows PowerShell 5.1 parses it reliably.
 #
 # Prerequisites: JDK 17+ with jlink/jpackage, fat JAR at target\SODAviewer.jar,
 # Windows OpenJFX jars in lib\javafx\.
@@ -42,7 +43,7 @@ $AppName = 'SODAviewer'
 $Platform = 'windows-x64'
 $Jar = Join-Path $Root 'target\SODAviewer.jar'
 if (-not (Test-Path -LiteralPath $Jar)) {
-  throw "Missing $Jar — run 'mvn -B -DskipTests package' first"
+  throw "Missing $Jar - run 'mvn -B -DskipTests package' first"
 }
 
 $JfxDir = Join-Path $Root 'lib\javafx'
