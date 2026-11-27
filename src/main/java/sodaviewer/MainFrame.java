@@ -640,7 +640,8 @@ public final class MainFrame extends JFrame {
         howto.addActionListener(e -> JOptionPane.showMessageDialog(this,
                 """
                 1. Drag & drop a .soda folder (or File → Open / Reopen last ⌘⇧O)
-                2. Overview shows index.html · then choose pca / umap / cgumap
+                2. Overview shows index.html · then choose pca / umap / knetl
+                   (aligned_* and cgumap/cgpca appear when present)
                 3. Gene(s) typeahead · Plot / Color by · Data · Dot size · Palette
                 4. View → Max cells to plot (default 1M) · ⌘P runs the selected plot
                 5. Zoom in/out/Home · Color scale for genes / continuous metadata
@@ -842,7 +843,7 @@ public final class MainFrame extends JFrame {
                     List<String> reds = plotReductions(soda);
                     if (reds.isEmpty()) {
                         throw new IllegalStateException(
-                                "No pca / umap / cgumap reductions found under " + soda.root());
+                                "No pca / umap / knetl reductions found under " + soda.root());
                     }
                     DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
                     for (String red : reds) {
@@ -1459,10 +1460,17 @@ public final class MainFrame extends JFrame {
 
     private String[] scatterAxes() {
         String red = String.valueOf(reductionBox.getSelectedItem());
-        if (red != null && red.toLowerCase(Locale.ROOT).contains("umap")) {
+        if (red == null) {
+            return new String[]{"Dim1", "Dim2"};
+        }
+        String low = red.toLowerCase(Locale.ROOT);
+        if (low.contains("knetl")) {
+            return new String[]{"KNetL_1", "KNetL_2"};
+        }
+        if (low.contains("umap")) {
             return new String[]{"UMAP_1", "UMAP_2"};
         }
-        if (red != null && red.toLowerCase(Locale.ROOT).contains("pca")) {
+        if (low.contains("pca")) {
             return new String[]{"PC1", "PC2"};
         }
         return new String[]{"Dim1", "Dim2"};

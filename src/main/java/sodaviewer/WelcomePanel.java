@@ -116,7 +116,7 @@ public final class WelcomePanel extends JPanel {
                         + "One portable <b>.soda</b> folder shared by "
                         + "<b>R</b>, <b>Python</b>, <b>Java</b> (this viewer), and the "
                         + "<b>bash CLI</b> — JSON · HDF5 · TSV · Parquet. "
-                        + "Open it here for UMAP, clusters, and genes."
+                        + "Open it here for PCA, UMAP, KNetL, clusters, and genes."
                         + "</div></html>");
         lede.setAlignmentX(Component.LEFT_ALIGNMENT);
         col.add(lede);
@@ -213,7 +213,7 @@ public final class WelcomePanel extends JPanel {
 
         String[][] steps = {
                 {"1", "Drag & drop", "Drop a .soda folder, or Open"},
-                {"2", "Reduction", "Choose pca · umap · cgumap"},
+                {"2", "Reduction", "Choose pca · umap · knetl"},
                 {"3", "Explore", "Plot genes · Color by metadata"}
         };
         for (int i = 0; i < steps.length; i++) {

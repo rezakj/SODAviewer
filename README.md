@@ -1,6 +1,6 @@
 # SODAviewer
 
-Portable **SODA archive viewer** (Java / Swing). Open a `.soda` folder and plot **UMAP / PCA** colored by gene expression — IGV-style bundled runtime, no install wizard.
+Portable **SODA archive viewer** (Java / Swing). Open a `.soda` folder and plot **PCA / UMAP / KNetL** (plus aligned_* and cgumap/cgpca when present) colored by gene expression — IGV-style bundled runtime, no install wizard.
 
 ## Install (end users)
 
@@ -52,7 +52,7 @@ Dev run without packaging:
 
 1. Launch → branded **welcome** (drop a `.soda` or Open)
 2. **Overview** — interactive archive `index.html`
-3. Reduction → **Choose…** then **pca / umap / cgumap** (switches to plot)
+3. Reduction → **Choose…** then **pca / umap / knetl** (aligned_* / cgumap / cgpca when present; switches to plot)
 4. **Plot clusters** / **Plot gene** / **Gene box**
 5. Gene box: one gene = box; `gene1, gene2, …` = bubble heatmap
 6. **File → Export plot…** → PNG / JPG / PDF
@@ -66,9 +66,9 @@ Large objects: randomly shows up to **100,000** cells (fixed seed) for speed.
 
 | Field | Value |
 |-------|-------|
-| SODAviewer | **0.2.3** (`VERSION`, `pom.xml`, `AppVersion.VERSION`, CLI `--version`) |
+| SODAviewer | **0.2.4** (`VERSION`, `pom.xml`, `AppVersion.VERSION`, CLI `--version`) |
 | Compatible SODA | **soda_version 1.0.0** / **schema_version 1.0.0** |
-| Producer tips | iCellR2 **2.0.5**, iCellPy **0.2.x** |
+| Producer tips | iCellR2 **2.0.11**, iCellPy **0.2.9** |
 
 ```bash
 java -jar target/SODAviewer.jar --version
