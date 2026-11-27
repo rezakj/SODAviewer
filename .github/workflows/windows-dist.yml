@@ -85,16 +85,21 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}
-          MSYS_NO_PATHCONV: "1"
-          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           set -euo pipefail
-          command -v jpackage
-          command -v jlink
+          # Normalize JAVA_HOME for Git Bash before package-app.sh touches PATH.
+          if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
+            export JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
+          fi
+          export PATH="${JAVA_HOME}/bin:${PATH}"
+          echo "JAVA_HOME=$JAVA_HOME"
+          ls -lh target/SODAviewer.jar lib/javafx/ | head -20
+          command -v jpackage || ls -la "${JAVA_HOME}/bin"/jpackage*
+          command -v jlink || ls -la "${JAVA_HOME}/bin"/jlink*
           bash package-app.sh
           # Flatten a copy of the launcher for a simple artifact name
           EXE="dist/SODAviewer/SODAviewer.exe"
-          [[ -f "$EXE" ]] || { echo "Missing $EXE"; find dist -maxdepth 3 -type f | head -50; exit 1; }
+          [[ -f "$EXE" ]] || { echo "Missing $EXE"; find dist -maxdepth 3 -type f | head -80; exit 1; }
           cp -f "$EXE" "dist/SODAviewer.exe"
           ls -lh dist/SODAviewer.exe dist/SODAviewer-*-windows-x64.zip
 

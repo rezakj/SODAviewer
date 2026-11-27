@@ -1,18 +1,33 @@
 #!/usr/bin/env bash
 # Build IGV-style app-image with bundled JRE for the *current* OS.
-# jpackage cannot cross-compile — run on macOS / Windows / Linux (or use CI).
+# jpackage cannot cross-compile - run on macOS / Windows / Linux (or use CI).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+# Git Bash on Windows: setup-java often sets a Windows-style JAVA_HOME; normalize
+# so bin/jpackage.exe is findable and PATH is not corrupted with backslashes.
+if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
+  JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
+  export JAVA_HOME
+fi
+
+have_jpackage() {
+  local home="${1:-}"
+  [[ -n "$home" ]] || return 1
+  [[ -x "$home/bin/jpackage" || -x "$home/bin/jpackage.exe" ]]
+}
+
 # Prefer bundled Temurin if present (local Mac), else JAVA_HOME / PATH
-if [[ -z "${JAVA_HOME:-}" || ! -x "${JAVA_HOME}/bin/jpackage" ]]; then
-  if [[ -x "$ROOT/runtime/jdk/Contents/Home/bin/jpackage" ]]; then
+if ! have_jpackage "${JAVA_HOME:-}"; then
+  if have_jpackage "$ROOT/runtime/jdk/Contents/Home"; then
     export JAVA_HOME="$ROOT/runtime/jdk/Contents/Home"
-  elif [[ -x "$ROOT/runtime/jdk/bin/jpackage" ]]; then
+  elif have_jpackage "$ROOT/runtime/jdk"; then
     export JAVA_HOME="$ROOT/runtime/jdk"
   fi
 fi
-export PATH="${JAVA_HOME:+$JAVA_HOME/bin:}$PATH"
+if [[ -n "${JAVA_HOME:-}" ]]; then
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 
 # Prefer VERSION file / env; keep in sync with pom.xml and AppVersion.VERSION
 if [[ -z "${VERSION:-}" && -f "$ROOT/VERSION" ]]; then
@@ -21,9 +36,42 @@ fi
 VERSION="${VERSION:-0.2.4}"
 APP_NAME=SODAviewer
 JAR="$ROOT/target/SODAviewer.jar"
-[[ -f "$JAR" ]] || { echo "Missing $JAR — run ./build.sh first"; exit 1; }
-command -v jpackage >/dev/null || { echo "jpackage not found (need JDK 17+)"; exit 1; }
-command -v jlink >/dev/null || { echo "jlink not found (need JDK 17+)"; exit 1; }
+[[ -f "$JAR" ]] || {
+  echo "Missing $JAR - run ./build.sh or mvn -DskipTests package first" >&2
+  echo "ROOT=$ROOT JAVA_HOME=${JAVA_HOME:-}" >&2
+  ls -la "$ROOT/target" >&2 || true
+  exit 1
+}
+
+# Resolve tools explicitly (Windows needs .exe; avoid PATH shadowing).
+JPACKAGE=""
+JLINK=""
+for cand in \
+  "${JAVA_HOME:+$JAVA_HOME/bin/jpackage}" \
+  "${JAVA_HOME:+$JAVA_HOME/bin/jpackage.exe}" \
+  "$(command -v jpackage 2>/dev/null || true)" \
+  "$(command -v jpackage.exe 2>/dev/null || true)"
+do
+  if [[ -n "$cand" && -x "$cand" ]]; then JPACKAGE="$cand"; break; fi
+done
+for cand in \
+  "${JAVA_HOME:+$JAVA_HOME/bin/jlink}" \
+  "${JAVA_HOME:+$JAVA_HOME/bin/jlink.exe}" \
+  "$(command -v jlink 2>/dev/null || true)" \
+  "$(command -v jlink.exe 2>/dev/null || true)"
+do
+  if [[ -n "$cand" && -x "$cand" ]]; then JLINK="$cand"; break; fi
+done
+[[ -n "$JPACKAGE" ]] || {
+  echo "jpackage not found (need JDK 17+). JAVA_HOME=${JAVA_HOME:-} PATH=$PATH" >&2
+  exit 1
+}
+[[ -n "$JLINK" ]] || {
+  echo "jlink not found (need JDK 17+). JAVA_HOME=${JAVA_HOME:-}" >&2
+  exit 1
+}
+echo "Using jpackage=$JPACKAGE"
+echo "Using jlink=$JLINK"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -47,9 +95,11 @@ case "$OS" in
     IMAGE_NAME="${APP_NAME}"
     ;;
   *)
-    echo "Unsupported OS: $OS"; exit 1
+    echo "Unsupported OS: $OS (uname=$(uname -s))" >&2
+    exit 1
     ;;
 esac
+echo "OS=$OS PLATFORM=$PLATFORM"
 
 DIST="$ROOT/dist"
 RUNTIME="$DIST/runtime-${PLATFORM}"
@@ -66,7 +116,7 @@ mkdir -p "$DIST"
 MODULES=java.base,java.desktop,java.logging,java.xml,java.datatransfer,java.prefs,java.net.http,java.scripting,jdk.unsupported,jdk.unsupported.desktop,jdk.jsobject,jdk.xml.dom,jdk.crypto.ec
 
 echo "==> jlink (${PLATFORM})..."
-jlink \
+"$JLINK" \
   --add-modules "$MODULES" \
   --strip-debug \
   --no-header-files \
@@ -92,7 +142,8 @@ if [[ "$OS" == darwin && "$VERSION" == 0.* ]]; then
 fi
 
 echo "==> jpackage app-image..."
-jpackage \
+# Avoid unicode punctuation in --description (Windows code pages can trip jpackage).
+"$JPACKAGE" \
   --type app-image \
   --name "$APP_NAME" \
   --app-version "$JPACKAGE_VERSION" \
@@ -106,7 +157,7 @@ jpackage \
   --java-options "-Dapple.awt.application.name=SODAviewer" \
   --java-options "--module-path \$APPDIR/javafx" \
   --java-options "--add-modules javafx.controls,javafx.web,javafx.swing" \
-  --description "SODA archive viewer — overview + gene expression on UMAP / PCA"
+  --description "SODA archive viewer - overview + gene expression on UMAP / PCA"
 
 if [[ "$OS" == darwin ]]; then
   PLIST="$DIST/$IMAGE_NAME/Contents/Info.plist"

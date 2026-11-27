@@ -82,14 +82,16 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}
-          MSYS_NO_PATHCONV: "1"
-          MSYS2_ARG_CONV_EXCL: "*"
         run: |
           set -euo pipefail
+          if command -v cygpath >/dev/null 2>&1 && [[ -n "${JAVA_HOME:-}" ]]; then
+            export JAVA_HOME="$(cygpath -u "$JAVA_HOME")"
+          fi
+          export PATH="${JAVA_HOME}/bin:${PATH}"
           bash package-app.sh
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             EXE="dist/SODAviewer/SODAviewer.exe"
-            [[ -f "$EXE" ]] || { echo "Missing $EXE"; find dist -maxdepth 3 -type f | head -50; exit 1; }
+            [[ -f "$EXE" ]] || { echo "Missing $EXE"; find dist -maxdepth 3 -type f | head -80; exit 1; }
             cp -f "$EXE" "dist/SODAviewer.exe"
           fi
           ls -lh dist/SODAviewer-* 2>/dev/null || true
