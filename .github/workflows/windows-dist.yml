@@ -1,20 +1,21 @@
-name: Windows dist (portable)
+name: Windows dist (.exe)
 
-# Durable Windows x64 ship: fat JAR + Temurin JRE + OpenJFX + SODAviewer.bat
-# (Native jpackage .exe kept failing on windows-2022; portable zip is the CI path.)
+# Native jpackage Windows app-image (SODAviewer.exe) on windows-2022.
+# Durable path: PowerShell / cmd only — never Git Bash for jpackage.
+#
+# Portable zip + SODAviewer.bat remains the documented Windows download
+# (package-windows-portable.sh / Release bundles). This workflow retries a
+# real .exe when you need the native launcher.
 #
 # Trigger:
-#   Actions → "Windows dist (portable)" → Run workflow
+#   Actions → "Windows dist (.exe)" → Run workflow
 #   Optional: check "Publish to GitHub Release" + tag (e.g. v0.2.4)
 #   Or: push to main/master touching this workflow / packaging scripts
-#
-# Full multi-OS Release: push a v* tag → "Release bundles"
-# (Windows leg of that workflow also uses the portable zip.)
 on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Upload Windows portable zip/jar to a GitHub Release"
+        description: "Upload Windows exe/zip/jar to a GitHub Release"
         type: boolean
         default: false
       release_tag:
@@ -25,7 +26,7 @@ on:
     branches: [main, master]
     paths:
       - ".github/workflows/windows-dist.yml"
-      - "package-windows-portable.sh"
+      - "package-windows-exe.ps1"
       - "package-app.sh"
       - "build.sh"
       - "pom.xml"
@@ -36,10 +37,11 @@ permissions:
   contents: write
 
 jobs:
-  windows-portable:
-    # Portable zip is cross-built (Win JRE + Win JavaFX + .bat); Ubuntu avoids
-    # windows-2022 Git Bash missing unzip/python3/du (exit 127).
-    runs-on: ubuntu-22.04
+  windows-exe:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
 
@@ -51,59 +53,81 @@ jobs:
 
       - name: Read VERSION
         id: ver
-        shell: bash
         run: |
-          set -euo pipefail
-          if [[ -f VERSION ]]; then
-            V="$(tr -d '[:space:]' < VERSION)"
-          else
-            V=0.2.0
-          fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.release_tag }}" ]]; then
-            TAG="${{ inputs.release_tag }}"
-          else
-            TAG="v${V}"
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "SODAviewer version=$V tag=$TAG"
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path -LiteralPath VERSION) {
+            $V = (Get-Content -LiteralPath VERSION -Raw).Trim()
+          } else {
+            $V = '0.2.0'
+          }
+          "version=$V" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $inputTag = '${{ inputs.release_tag }}'.Trim()
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and $inputTag.Length -gt 0) {
+            $TAG = $inputTag
+          } else {
+            $TAG = "v$V"
+          }
+          "tag=$TAG" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "SODAviewer version=$V tag=$TAG"
 
-      - name: Maven package
-        shell: bash
+      - name: Maven package + Windows JavaFX for jpackage
         run: |
-          set -euo pipefail
-          mvn -B -DskipTests package
-          test -f target/SODAviewer.jar
-          ls -lh target/SODAviewer.jar
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path lib\javafx | Out-Null
+          $BASE = 'https://repo.maven.apache.org/maven2'
+          $JFX_VER = '17.0.14'
+          foreach ($mod in @('base','controls','graphics','swing','web')) {
+            $out = "lib\javafx\javafx-$mod-$JFX_VER-win.jar"
+            $url = "$BASE/org/openjfx/javafx-$mod/$JFX_VER/javafx-$mod-$JFX_VER-win.jar"
+            Write-Host "GET $url"
+            & curl.exe -fsSL -o $out $url
+            if (-not (Test-Path -LiteralPath $out) -or (Get-Item -LiteralPath $out).Length -lt 1000) {
+              throw "Download failed or too small: $out"
+            }
+          }
+          & mvn -B -DskipTests package
+          if ($LASTEXITCODE -ne 0) { throw "mvn package failed: $LASTEXITCODE" }
+          if (-not (Test-Path -LiteralPath 'target\SODAviewer.jar')) {
+            throw 'Missing target\SODAviewer.jar'
+          }
+          Get-Item target\SODAviewer.jar, lib\javafx\*.jar | Format-Table Name, Length
 
-      - name: Portable Windows zip (JRE + JavaFX + bat)
-        shell: bash
+      - name: jpackage Windows app-image (PowerShell)
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          set -euo pipefail
-          bash package-windows-portable.sh
-          test -f "dist/SODAviewer-${{ steps.ver.outputs.version }}-windows-x64.zip"
-          ls -lh dist/SODAviewer-*-windows-x64.zip dist/SODAviewer-*.jar dist/WINDOWS-BUILD.txt
+          $ErrorActionPreference = 'Stop'
+          Write-Host "JAVA_HOME=$env:JAVA_HOME"
+          Get-ChildItem "$env:JAVA_HOME\bin\jpackage*", "$env:JAVA_HOME\bin\jlink*" |
+            Format-Table Name, Length
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\package-windows-exe.ps1
+          if ($LASTEXITCODE -ne 0) { throw "package-windows-exe.ps1 failed: $LASTEXITCODE" }
+          $ver = '${{ steps.ver.outputs.version }}'
+          $exe = 'dist\SODAviewer.exe'
+          $zip = "dist\SODAviewer-$ver-windows-x64-exe.zip"
+          if (-not (Test-Path -LiteralPath $exe)) { throw "Missing $exe" }
+          if (-not (Test-Path -LiteralPath $zip)) { throw "Missing $zip" }
+          Get-Item $exe, $zip, "dist\SODAviewer-$ver.jar" | Format-Table Name, Length
 
-      - name: Upload Windows portable artifacts
+      - name: Upload SODAviewer.exe + zip
         uses: actions/upload-artifact@v4
         with:
-          name: SODAviewer-windows-x64-${{ steps.ver.outputs.version }}
+          name: SODAviewer-windows-x64-exe-${{ steps.ver.outputs.version }}
           path: |
-            dist/SODAviewer-*-windows-x64.zip
+            dist/SODAviewer.exe
+            dist/SODAviewer-*-windows-x64-exe.zip
             dist/SODAviewer-*.jar
-            dist/WINDOWS-BUILD.txt
           if-no-files-found: error
 
-      - name: Publish Windows assets to GitHub Release
+      - name: Publish Windows exe assets to GitHub Release
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: SODAviewer ${{ steps.ver.outputs.tag }}
           files: |
-            dist/SODAviewer-*-windows-x64.zip
+            dist/SODAviewer.exe
+            dist/SODAviewer-*-windows-x64-exe.zip
             dist/SODAviewer-*.jar
           generate_release_notes: true
           fail_on_unmatched_files: true

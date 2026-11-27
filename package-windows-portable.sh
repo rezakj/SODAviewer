@@ -174,12 +174,14 @@ cat > "$DIST/WINDOWS-BUILD.txt" <<EOF
 SODAviewer Windows packaging
 ============================
 
-A) Portable zip - package-windows-portable.sh (CI path)
+A) Portable zip - package-windows-portable.sh (documented download / Release path)
    Output: dist/${APP_NAME}-${VERSION}-${PLATFORM}.zip
    Contains: SODAviewer.bat + SODAviewer.jar + javafx\\ (win) + runtime\\ (Temurin JRE)
 
-B) Native jpackage app-image (.exe) - optional, run ON Windows with JDK 17+
-     ./build.sh && ./package-app.sh
+B) Native jpackage app-image (.exe) - optional
+   CI: Actions → "Windows dist (.exe)" (package-windows-exe.ps1, PowerShell only)
+   Local on Windows (JDK 17+):  .\\package-windows-exe.ps1
+   Or:                          .\\package-app.sh  (Git Bash; prefer PowerShell on CI)
 EOF
 
 echo "==> zip ${OUT_ZIP}..."

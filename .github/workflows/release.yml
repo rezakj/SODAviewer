@@ -35,7 +35,9 @@ jobs:
           - os: ubuntu-22.04
             artifact: linux-x64
             javafx_classifier: linux
-          # Portable Windows zip cross-builds on Ubuntu (no jpackage / Git Bash).
+          # Documented Windows download: portable zip + SODAviewer.bat
+          # (cross-built on Ubuntu). Native SODAviewer.exe is optional via
+          # Actions → "Windows dist (.exe)" (PowerShell jpackage on windows-2022).
           - os: ubuntu-22.04
             artifact: windows-x64
             javafx_classifier: win

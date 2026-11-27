@@ -4,17 +4,19 @@ Portable **SODA archive viewer** (Java / Swing). Open a `.soda` folder and plot 
 
 ## Install (end users)
 
-Download the zip for **your OS** from [Releases](../../releases), unzip, run:
+Download for **your OS** from [Releases](../../releases):
 
 | Platform | Download | How to run |
 |----------|----------|------------|
-| macOS Apple Silicon | `SODAviewer-*-macos-arm64.dmg` or `.zip` | DMG: drag to Applications · Zip: open `SODAviewer.app` |
-| macOS Intel | `SODAviewer-*-macos-x64.dmg` or `.zip` | DMG: drag to Applications · Zip: open `SODAviewer.app` |
-| Windows | `SODAviewer-*-windows-x64.zip` | Run `SODAviewer/SODAviewer.exe` |
+| macOS Apple Silicon | `SODAviewer-*-macos-arm64.dmg` (or `.zip`) | DMG: drag to Applications · Zip: open `SODAviewer.app` |
+| macOS Intel | `SODAviewer-*-macos-x64.dmg` (or `.zip`) | DMG: drag to Applications · Zip: open `SODAviewer.app` |
+| Windows | `SODAviewer-*-windows-x64.zip` (portable) | Unzip → double-click `SODAviewer.bat` |
 | Linux | `SODAviewer-*-linux-x64.zip` | Run `SODAviewer/bin/SODAviewer` |
 | Any OS (needs Java 17+) | `SODAviewer-*.jar` | `java -jar SODAviewer-*.jar` |
 
-No Java install for the platform zips (JRE is inside).
+No Java install for the platform bundles (JRE is inside).
+
+**Windows note:** the Release download is the **portable zip** (`SODAviewer.bat` + bundled JRE). A native `SODAviewer.exe` (jpackage) is produced when **Actions → Windows dist (.exe)** succeeds; if present on the Release, use that instead (or the `*-windows-x64-exe.zip` app-image).
 
 **macOS Gatekeeper:** first launch → right-click → **Open** (not notarized yet).
 
@@ -24,18 +26,20 @@ Bundles are built **per OS** (jpackage cannot cross-compile). GitHub Actions bui
 # From a commit that has VERSION=0.2.4
 git tag v0.2.4
 git push origin v0.2.4
-# → Actions "Release bundles" builds all OS zips + uploads to Release v0.2.4
+# → Actions "Release bundles" builds Mac dmg/zip, Windows portable zip, Linux zip
 ```
 
 Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
-### Windows `.exe` only (GitHub Actions)
+### Windows `.exe` (optional, GitHub Actions)
 
-Native `SODAviewer.exe` (jpackage on `windows-2022`) — use this from a Mac when you only need Windows:
+Native `SODAviewer.exe` via jpackage on `windows-2022` (**PowerShell only** — no Git Bash):
 
 1. Open **Actions** → **Windows dist (.exe)** → **Run workflow**.
-2. Optional: enable **Publish to GitHub Release** and set tag `v0.2.4` to attach the zip/exe to that Release (creates the tag/release if missing).
-3. Or leave publish off and download from the run **Artifacts** → `SODAviewer-windows-x64-*`.
+2. Optional: enable **Publish to GitHub Release** and set tag `v0.2.4` to attach the exe/zip to that Release.
+3. Or leave publish off and download from the run **Artifacts** → `SODAviewer-windows-x64-exe-*`.
+
+Until that job succeeds, use the portable zip (`.bat`) above.
 
 Workflow: [`.github/workflows/windows-dist.yml`](.github/workflows/windows-dist.yml).
 
@@ -45,9 +49,13 @@ Workflow: [`.github/workflows/windows-dist.yml`](.github/workflows/windows-dist.
 ./build.sh                      # fat JAR (this machine)
 ./package-app.sh                # jpackage app-image for *this* OS only → dist/
 ./package-windows-portable.sh   # Windows x64 portable zip from any host → dist/
+# On Windows (PowerShell), native exe:
+#   mvn -B -DskipTests package
+#   # put javafx-*-win.jar in lib\javafx\
+#   .\package-windows-exe.ps1
 ```
 
-`jpackage` cannot cross-compile. On a Mac, `./package-app.sh` yields a macOS `.app`. For a **native Windows `.exe`** app-image, run `./package-app.sh` on Windows, or use **Actions → Windows dist (.exe)** above (or the multi-OS **Release bundles** workflow).
+`jpackage` cannot cross-compile. On a Mac, `./package-app.sh` yields a macOS `.app` / `.dmg`. For a **native Windows `.exe`**, run `.\package-windows-exe.ps1` on Windows, or **Actions → Windows dist (.exe)**.
 
 From macOS/Linux you can still ship a usable Windows bundle with `./package-windows-portable.sh` → `dist/SODAviewer-*-windows-x64.zip` (bundled Temurin JRE + Windows OpenJFX + `SODAviewer.bat`). See `dist/WINDOWS-BUILD.txt`.
 
